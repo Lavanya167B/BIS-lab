@@ -1,0 +1,68 @@
+import random
+import matplotlib.pyplot as plt
+
+# Parameters
+POP_SIZE = 30
+GENERATIONS = 20
+MUTATION_RATE = 0.2
+
+# Each bacterium has: resistance (0-1), growth rate (0-1)
+def create_bacterium():
+    return [random.random(), random.random()]
+
+# Fitness = weighted sum of traits
+def fitness(bacterium):
+    resistance, growth = bacterium
+    return resistance * 0.7 + growth * 0.3
+
+# Selection (tournament selection)
+def select(population):
+    a, b = random.sample(population, 2)
+    return a if fitness(a) > fitness(b) else b
+
+# Crossover: average traits
+def crossover(parent1, parent2):
+    child1 = [(parent1[i] + parent2[i]) / 2 for i in range(2)]
+    child2 = [(parent1[i] * 0.7 + parent2[i] * 0.3) for i in range(2)]
+    return child1, child2
+
+# Mutation: slight random change
+def mutate(bacterium):
+    if random.random() < MUTATION_RATE:
+        i = random.choice([0, 1])  # mutate resistance or growth
+        bacterium[i] += random.uniform(-0.1, 0.1)
+        bacterium[i] = max(0, min(1, bacterium[i]))  # keep within [0,1]
+    return bacterium
+
+# Initialize population
+population = [create_bacterium() for _ in range(POP_SIZE)]
+
+avg_resistances = []
+avg_growth_rates = []
+
+for gen in range(GENERATIONS):
+    new_population = []
+    for _ in range(POP_SIZE // 2):
+        parent1 = select(population)
+        parent2 = select(population)
+        child1, child2 = crossover(parent1, parent2)
+        new_population.append(mutate(child1))
+        new_population.append(mutate(child2))
+    population = new_population
+
+    # Track averages
+    avg_res = sum(b[0] for b in population) / POP_SIZE
+    avg_gro = sum(b[1] for b in population) / POP_SIZE
+    avg_resistances.append(avg_res)
+    avg_growth_rates.append(avg_gro)
+
+    print(f"Generation {gen+1}: Avg Resistance = {avg_res:.3f}, Avg Growth = {avg_gro:.3f}")
+
+# Plot results
+plt.plot(range(1, GENERATIONS+1), avg_resistances, label="Avg Resistance")
+plt.plot(range(1, GENERATIONS+1), avg_growth_rates, label="Avg Growth Rate")
+plt.xlabel("Generation")
+plt.ylabel("Trait Value")
+plt.title("Bacteria Evolution (Survival of the Fittest)")
+plt.legend()
+plt.show()
