@@ -1,0 +1,97 @@
+import random
+import copy
+
+# ---------- Sudoku Fitness Function ----------
+def fitness(board):
+    """Calculate fitness: total number of unique numbers in rows, columns, and blocks."""
+    score = 0
+    # Rows
+    for row in board:
+        score += len(set(row))
+    # Columns
+    for col in zip(*board):
+        score += len(set(col))
+    # 3x3 blocks
+    for i in range(0,9,3):
+        for j in range(0,9,3):
+            block = [board[x][y] for x in range(i,i+3) for y in range(j,j+3)]
+            score += len(set(block))
+    return score
+
+# ---------- Generate Initial Nest ----------
+def generate_candidate(puzzle):
+    """Fill empty cells randomly respecting fixed numbers."""
+    candidate = copy.deepcopy(puzzle)
+    for i in range(9):
+        for j in range(9):
+            if candidate[i][j] == 0:
+                candidate[i][j] = random.randint(1,9)
+    return candidate
+
+# ---------- Lévy Flight (Random Swap) ----------
+def levy_flight(board, fixed_cells):
+    """Make a small change by swapping two non-fixed numbers in a random row."""
+    new_board = copy.deepcopy(board)
+    row = random.randint(0,8)
+    # Find non-fixed cells in the row
+    non_fixed = [j for j in range(9) if (row,j) not in fixed_cells]
+    if len(non_fixed) >= 2:
+        a,b = random.sample(non_fixed,2)
+        new_board[row][a], new_board[row][b] = new_board[row][b], new_board[row][a]
+    return new_board
+
+# ---------- Main Cuckoo Search Function ----------
+def cuckoo_search_sudoku(puzzle, n_nests=5, pa=0.25, max_iter=1000):
+    fixed_cells = {(i,j) for i in range(9) for j in range(9) if puzzle[i][j]!=0}
+
+    nests = [generate_candidate(puzzle) for _ in range(n_nests)]
+    fitnesses = [fitness(n) for n in nests]
+
+    best_idx = fitnesses.index(max(fitnesses))
+    best_nest = nests[best_idx]
+    best_fitness = fitnesses[best_idx]
+
+    for iter in range(max_iter):
+        for i in range(n_nests):
+            new_nest = levy_flight(nests[i], fixed_cells)
+            new_fit = fitness(new_nest)
+            if new_fit > fitnesses[i]:
+                nests[i] = new_nest
+                fitnesses[i] = new_fit
+
+        num_abandon = int(pa * n_nests)
+        worst_idx = sorted(range(n_nests), key=lambda x: fitnesses[x])[:num_abandon]
+        for idx in worst_idx:
+            nests[idx] = generate_candidate(puzzle)
+            fitnesses[idx] = fitness(nests[idx])
+
+        best_idx = fitnesses.index(max(fitnesses))
+        best_nest = nests[best_idx]
+        best_fitness = fitnesses[best_idx]
+
+        if best_fitness == 243:
+            print(f"Solution found at iteration {iter+1}")
+            return best_nest
+
+    print("Max iterations reached, returning best candidate")
+    return best_nest
+
+# ---------- User Input ----------
+print("Enter Sudoku puzzle row by row (use 0 for empty cells):")
+puzzle = []
+for i in range(9):
+    while True:
+        row_input = input(f"Row {i+1}: ").strip().split()
+        if len(row_input) != 9 or not all(x.isdigit() for x in row_input):
+            print("Invalid input. Enter exactly 9 numbers separated by spaces.")
+        else:
+            puzzle.append([int(x) for x in row_input])
+            break
+
+# ---------- Run Cuckoo Search ----------
+solution = cuckoo_search_sudoku(puzzle, n_nests=10, pa=0.25, max_iter=5000)
+
+# ---------- Print Solution ----------
+print("\nSolved Sudoku / Best Candidate:")
+for row in solution:
+    print(row)
