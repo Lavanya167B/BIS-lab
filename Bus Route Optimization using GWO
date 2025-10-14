@@ -1,0 +1,86 @@
+import numpy as np
+import random
+
+# -----------------------------
+# 1. User Input
+# -----------------------------
+num_stops = int(input("Enter number of bus stops: "))
+stops = []
+
+for i in range(num_stops):
+    stop_name = input(f"Enter name of stop {i+1}: ")
+    stops.append(stop_name)
+
+# Create distance matrix
+distance = {}
+print("\nEnter distances between stops:")
+for i in range(num_stops):
+    for j in range(i+1, num_stops):
+        d = float(input(f"Distance between {stops[i]} and {stops[j]} (km): "))
+        distance[(stops[i], stops[j])] = d
+
+# Distance to College (C0)
+college_dist = {}
+for stop in stops:
+    d = float(input(f"Distance from {stop} to College (C0) (km): "))
+    college_dist[stop] = d
+
+# -----------------------------
+# 2. Route Distance Function
+# -----------------------------
+def route_distance(route):
+    total = 0
+    for i in range(len(route)-1):
+        pair = (route[i], route[i+1])
+        total += distance.get(pair, distance.get((pair[1], pair[0]), 0))
+    total += college_dist[route[-1]]  # Add last leg to College
+    return total
+
+# -----------------------------
+# 3. Initialize Wolves (Random Routes)
+# -----------------------------
+num_wolves = 5
+max_iter = 30
+
+wolves = []
+for _ in range(num_wolves):
+    wolf = stops.copy()
+    random.shuffle(wolf)
+    wolves.append(wolf)
+
+# -----------------------------
+# 4. GWO Optimization Loop
+# -----------------------------
+alpha_route = None
+alpha_score = float('inf')
+
+for t in range(max_iter):
+    # Evaluate fitness
+    scores = [route_distance(w) for w in wolves]
+    sorted_idx = np.argsort(scores)
+
+    # Update alpha, beta, delta
+    alpha_route = wolves[sorted_idx[0]]
+    alpha_score = scores[sorted_idx[0]]
+    beta_route = wolves[sorted_idx[1]]
+    delta_route = wolves[sorted_idx[2]]
+
+    # Update wolves positions (swap toward alpha)
+    new_wolves = []
+    for wolf in wolves:
+        new_wolf = wolf.copy()
+        # Swap one stop toward alpha
+        for i in range(num_stops):
+            if new_wolf[i] != alpha_route[i]:
+                swap_idx = new_wolf.index(alpha_route[i])
+                new_wolf[i], new_wolf[swap_idx] = new_wolf[swap_idx], new_wolf[i]
+                break
+        new_wolves.append(new_wolf)
+    wolves = new_wolves
+
+# -----------------------------
+# 5. Output Best Route
+# -----------------------------
+print("\nOptimized Bus Route:")
+print(" -> ".join(alpha_route) + " -> C0")
+print(f"Total Distance: {alpha_score} km")
