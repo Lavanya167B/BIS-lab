@@ -1,0 +1,45 @@
+import numpy as np
+
+# Create a small noisy 5x5 grayscale image
+img = np.array([
+    [50, 52, 55, 200, 202],
+    [48, 53, 54, 198, 205],
+    [49, 51, 52, 203, 207],
+    [200, 199, 202, 50, 55],
+    [205, 203, 204, 52, 53]
+], dtype=float)
+
+alpha = 0.25  # smoothing rate
+beta = 1.0    # edge preservation factor
+iterations = 3
+
+def neighbor_mean(matrix):
+    padded = np.pad(matrix, 1, mode='edge')
+    result = np.zeros_like(matrix)
+    for i in range(matrix.shape[0]):
+        for j in range(matrix.shape[1]):
+            region = padded[i:i+3, j:j+3]
+            result[i, j] = np.mean(region)
+    return result
+
+# Parallel Cellular Algorithm loop
+for _ in range(iterations):
+    mean = neighbor_mean(img)
+    grad_x = np.gradient(img, axis=1)
+    grad_y = np.gradient(img, axis=0)
+    grad_mag = np.sqrt(grad_x**2 + grad_y**2)
+    img = img + alpha * (mean - img) * (1 - np.exp(-beta * grad_mag))
+
+output = np.round(np.clip(img, 0, 255), 2)
+
+print("Input Image (with noise):")
+print(np.array([
+    [50, 52, 55, 200, 202],
+    [48, 53, 54, 198, 205],
+    [49, 51, 52, 203, 207],
+    [200, 199, 202, 50, 55],
+    [205, 203, 204, 52, 53]
+]))
+
+print("\nOutput Image (after denoising):")
+print(output)
